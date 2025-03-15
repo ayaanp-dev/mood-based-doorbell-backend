@@ -11,19 +11,29 @@ from fastapi.middleware.cors import CORSMiddleware
 from pyAudioAnalysis import audioTrainTest as aT
 from pyAudioAnalysis import MidTermFeatures as aF
 from pydub import AudioSegment
+from fastapi.responses import JSONResponse
 
 app = FastAPI()
 
-# Add CORS middleware
+# Add CORS middleware with more specific configuration
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:3000",
-        "https://mood-based-doorbell.vercel.app"
+        "https://mood-based-doorbell.vercel.app",
+        "https://*.vercel.app"
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=[
+        "Content-Type",
+        "Authorization",
+        "Access-Control-Allow-Origin",
+        "Access-Control-Allow-Methods",
+        "Access-Control-Allow-Headers"
+    ],
+    expose_headers=["*"],
+    max_age=600,
 )
 
 async def analyze_emotion(image_data: bytes) -> Tuple[str, float]:
@@ -166,7 +176,7 @@ async def analyze_voice_emotion(audio_data: bytes) -> str:
             os.unlink(temp_path)
 
 @app.post("/detect-mood")
-async def detect_mood(file: UploadFile = File(...)) -> Dict[str, str]:
+async def detect_mood(file: UploadFile = File(...)) -> JSONResponse:
     """
     Detect the dominant mood (happy, sad, or angry) from an uploaded image.
     """
@@ -176,11 +186,15 @@ async def detect_mood(file: UploadFile = File(...)) -> Dict[str, str]:
     try:
         image_data = await file.read()
         mood, confidence = await analyze_emotion(image_data)
-        return {
-            "mood": mood,
-            "confidence": f"{confidence:.2f}%"
-        }
-    
+        return JSONResponse(
+            content={
+                "mood": mood,
+                "confidence": f"{confidence:.2f}%"
+            },
+            headers={
+                "Access-Control-Allow-Origin": "https://mood-based-doorbell.vercel.app"
+            }
+        )
     except HTTPException as he:
         raise he
     except Exception as e:
