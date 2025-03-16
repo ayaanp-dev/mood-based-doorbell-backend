@@ -18,22 +18,10 @@ app = FastAPI()
 # Add CORS middleware with more specific configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://mood-based-doorbell.vercel.app",
-        "https://*.vercel.app"
-    ],
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=[
-        "Content-Type",
-        "Authorization",
-        "Access-Control-Allow-Origin",
-        "Access-Control-Allow-Methods",
-        "Access-Control-Allow-Headers"
-    ],
-    expose_headers=["*"],
-    max_age=600,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=False,  # Set to False when using "*"
+    allow_methods=["*"],  # Allows all methods
+    allow_headers=["*"],  # Allows all headers
 )
 
 async def analyze_emotion(image_data: bytes) -> Tuple[str, float]:
@@ -192,7 +180,7 @@ async def detect_mood(file: UploadFile = File(...)) -> JSONResponse:
                 "confidence": f"{confidence:.2f}%"
             },
             headers={
-                "Access-Control-Allow-Origin": "https://mood-based-doorbell.vercel.app"
+                "Access-Control-Allow-Origin": "*"
             }
         )
     except HTTPException as he:
@@ -202,7 +190,7 @@ async def detect_mood(file: UploadFile = File(...)) -> JSONResponse:
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @app.post("/detect-voice-mood")
-async def detect_voice_mood(file: UploadFile = File(...)) -> Dict[str, str]:
+async def detect_voice_mood(file: UploadFile = File(...)) -> JSONResponse:
     """
     Detect the dominant mood (happy, sad, or angry) from an uploaded voice recording.
     Accepts various audio formats (MP3, WAV, OGG, etc.)
@@ -216,7 +204,12 @@ async def detect_voice_mood(file: UploadFile = File(...)) -> Dict[str, str]:
     try:
         audio_data = await file.read()
         mood = await analyze_voice_emotion(audio_data)
-        return {"mood": mood}
+        return JSONResponse(
+            content={"mood": mood},
+            headers={
+                "Access-Control-Allow-Origin": "*"
+            }
+        )
     
     except HTTPException as he:
         raise he
